@@ -2,6 +2,8 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CLUTCH LAB — Labo Robots (Dom)</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 :root{
   --plum:#532943; --pink:#EB6BAF; --green:#77BC1F; --bg:#1d0b16; --panel:#2a1020;
@@ -42,7 +44,10 @@ input[type=range]{width:100%;accent-color:var(--pink)}
 .stat .n.v{color:var(--green)}
 .stat .l{font-size:9px;color:var(--gray);text-transform:uppercase;font-weight:800;letter-spacing:.04em;margin-top:2px}
 canvas{width:100%;border-radius:12px;background:#160811;display:block}
-#map{cursor:crosshair}
+#map{height:440px;border-radius:12px;background:#e8e6e4}
+.helpol{font-size:12px;color:var(--ink2);line-height:1.6}
+.helpol b{color:var(--ink)}
+.helpol li{margin:0 0 7px 16px}
 .legend{display:flex;gap:12px;font-size:10px;color:var(--gray);margin-top:6px;flex-wrap:wrap}
 .legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px}
 .alerts{max-height:230px;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
@@ -80,6 +85,19 @@ pre{font-size:10px;color:var(--green);white-space:pre-wrap;word-break:break-all;
 <div class="wrap">
   <!-- ══════════ COLONNE GAUCHE : connexion + population + scénario ══════════ -->
   <div class="col">
+    <div class="box">
+      <h2>❓ Mode d'emploi</h2>
+      <details><summary>Le cockpit en 6 étapes (clique)</summary>
+        <ol class="helpol" style="margin-top:8px">
+          <li><b>1 · Backend.</b> Deux choix : <b>Mode démo locale</b> (rien à configurer, ville émulée — pour comprendre l'outil) ou <b>Connecter staging</b> (les bots écrivent de VRAIES lignes dans ton Supabase de test). Jamais la prod.</li>
+          <li><b>2 · Population.</b> Choisis le nombre de bots + la seed (même seed = même film, indispensable pour rejouer un bug), puis <b>➕ Créer les bots</b>.</li>
+          <li><b>3 · Scénario.</b> Règle les probas de comportement : ouvrir une Fenêtre, envoyer un Clutch, accepter/refuser. C'est ton panel statistique : zone creuse = peu de bots, Lausanne samedi 20h = beaucoup.</li>
+          <li><b>4 · ▶️ Lancer la soirée.</b> À chaque tick les bots vivent : Fenêtres, Clutchs, Verrous, Événements — via les mêmes portes (RPC) que les humains. La carte s'anime, le journal raconte tout.</li>
+          <li><b>5 · Observe.</b> Métriques live + courbe Fenêtres/Verrous = la <b>liquidité</b> (à quelle densité la ville « prend »). Le <b>COQ</b> crie en rouge si un invariant casse (double-booking, RDV infaisable, boîte ♀ saturée…) avec tick + seed pour rejouer.</li>
+          <li><b>6 · Creuse.</b> Clique un bot sur la carte = <b>POV</b> (sa fiche, ses clutchs). <b>💾 Export JSON</b> = le run complet à partager sur /collab ou à me redonner pour analyse.</li>
+        </ol>
+      </details>
+    </div>
     <div class="box">
       <h2>🔌 Backend <span class="r" id="whoami">non connecté</span></h2>
       <label>URL Supabase staging</label>
@@ -147,10 +165,10 @@ $$;</pre>
   <div class="col">
     <div class="box">
       <h2>🏙️ La ville (Lausanne) <span class="r"><span class="clock" id="clock">—</span> · tick <span id="tickN">0</span></span></h2>
-      <canvas id="map" width="640" height="430"></canvas>
+      <div id="map"></div>
       <div class="legend">
-        <span><i style="background:#EB6BAF"></i>femme</span><span><i style="background:#7ab8ff"></i>homme</span>
-        <span><i style="background:#77BC1F"></i>Verrou</span><span style="color:var(--gray)">cercle = Fenêtre ouverte · trait pointillé = Clutch pending · trait vert = Verrou</span>
+        <span><i style="background:#EB6BAF"></i>femme</span><span><i style="background:#3d7bd6"></i>homme</span>
+        <span><i style="background:#77BC1F"></i>Verrou</span><span style="color:var(--gray)">cercle rose = Fenêtre ouverte · pointillé = Clutch pending · trait vert = Verrou</span>
         <span>· clique un point = POV</span>
       </div>
     </div>
@@ -419,7 +437,7 @@ async function runTick(){
   updateMetrics(true)
 }
 
-const nameOf = id => ((snap.people||[]).find(p=>p.id===id)||{}).name||id.slice(0,6)
+const nameOf = id => ((snap.people||[]).find(p=>p.id===id)||{}).name||String(id).slice(0,6)
 
 // ── LE COQ : invariants vérifiés sur le snapshot (l'état RÉEL de la base) ────
 function runCoq(){
@@ -445,7 +463,7 @@ function runCoq(){
       const p=(snap.people||[]).find(x=>x.id===pid); if(!p||p.lat==null) continue
       const lead=+new Date(c.proposed_time)-+new Date(c.created_at)
       const need=TRAVEL_MS(havKm(p.lat,p.lng,c.venue_lat,c.venue_lng))
-      if(lead>=0 && need>lead) coq('REACH',`Verrou ${c.id.slice ? String(c.id).slice(0,8):c.id} : ${nameOf(pid)} (${who}) ne pouvait PAS y être (${Math.round(need/MIN)} min de trajet, ${Math.round(lead/MIN)} min de préavis) — Graal 1`,pid)
+      if(lead>=0 && need>lead) coq('REACH',`Verrou ${String(c.id).slice(0,8)} : ${nameOf(pid)} (${who}) ne pouvait PAS y être (${Math.round(need/MIN)} min de trajet, ${Math.round(lead/MIN)} min de préavis) — Graal 1`,pid)
     } }
   // PAIR_DUP : 2 pendings sur la même paire
   const pend=(snap.clutches||[]).filter(c=>c.status==='pending'), seen={}
@@ -486,52 +504,46 @@ function drawChart(){
   line('wins',maxW,'#EB6BAF'); line('lock',maxL,'#77BC1F')
 }
 
-// ── LA CARTE ─────────────────────────────────────────────────────────────────
-const KM_LAT=1/111, KM_LNG=1/77
-function proj(lat,lng,c){ const R=7
-  return [ (lng-LSN[1])/(KM_LNG*R)*(c.width/2)+c.width/2, c.height/2-(lat-LSN[0])/(KM_LAT*R)*(c.height/2) ] }
+// ── LA CARTE — Leaflet + tuiles CartoDB light_all (les MÊMES que l'appli, lib/MapLeaflet.tsx) ──
+let LMAP=null, LLAYER=null
+function initMap(){
+  LMAP = L.map('map',{zoomControl:true,attributionControl:false}).setView(LSN,13)
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:19}).addTo(LMAP)
+  LLAYER = L.layerGroup().addTo(LMAP)
+}
 function draw(){
-  const c=$('map'), x=c.getContext('2d'); x.clearRect(0,0,c.width,c.height)
-  x.strokeStyle='rgba(255,191,158,.07)'
-  for(let r=2;r<=6;r+=2){ x.beginPath(); x.arc(c.width/2,c.height/2,r/7*(c.width/2),0,7); x.stroke() }
+  if(!LMAP){ initMap() }
+  LLAYER.clearLayers()
   const people=(snap.people||[]).filter(p=>p.is_bot&&p.lat!=null)
   const wins=Object.fromEntries((snap.windows||[]).map(w=>[w.user_id,w]))
   const locked=new Set(); (snap.clutches||[]).filter(cl=>cl.status==='accepted').forEach(cl=>{locked.add(cl.sender_id);locked.add(cl.receiver_id)})
-  // clutch lines
-  for(const cl of (snap.clutches||[]).slice(0,200)){
-    const a=people.find(p=>p.id===cl.sender_id), b=people.find(p=>p.id===cl.receiver_id); if(!a||!b) continue
-    const [x1,y1]=proj(a.lat,a.lng,c), [x2,y2]=proj(b.lat,b.lng,c)
-    x.beginPath(); x.moveTo(x1,y1); x.lineTo(x2,y2)
-    if(cl.status==='accepted'){ x.strokeStyle='rgba(119,188,31,.7)'; x.setLineDash([]) }
-    else if(cl.status==='pending'){ x.strokeStyle='rgba(245,232,222,.25)'; x.setLineDash([4,4]) }
-    else { x.strokeStyle='rgba(255,107,129,.10)'; x.setLineDash([2,5]) }
-    x.lineWidth=1.4; x.stroke(); x.setLineDash([])
-  }
-  // fenêtres (cercles de rayon)
+  // Fenêtres (cercle de rayon réel, en km)
   for(const w of (snap.windows||[])){
     const p=people.find(q=>q.id===w.user_id); if(!p) continue
-    const [px_,py]=proj(w.lat||p.lat,w.lng||p.lng,c)
-    x.beginPath(); x.arc(px_,py,(w.radius_km||5)/7*(c.width/2)/1.6,0,7)
-    x.strokeStyle='rgba(235,107,175,.16)'; x.lineWidth=1; x.stroke()
+    L.circle([w.lat||p.lat, w.lng||p.lng],{radius:(w.radius_km||5)*1000,color:'#EB6BAF',weight:1,opacity:.30,fillColor:'#EB6BAF',fillOpacity:.04}).addTo(LLAYER)
   }
-  // points
+  // Clutchs (traits)
+  for(const cl of (snap.clutches||[]).slice(0,250)){
+    const a=people.find(p=>p.id===cl.sender_id), b=people.find(p=>p.id===cl.receiver_id); if(!a||!b) continue
+    const style = cl.status==='accepted' ? {color:'#5a9416',weight:2.2,opacity:.85}
+      : cl.status==='pending' ? {color:'#8a7f88',weight:1.4,opacity:.7,dashArray:'5,6'}
+      : {color:'#c9536b',weight:1,opacity:.18,dashArray:'2,7'}
+    L.polyline([[a.lat,a.lng],[b.lat,b.lng]],style).addTo(LLAYER)
+  }
+  // Bots (points cliquables → POV)
   for(const p of people){
-    const [px_,py]=proj(p.lat,p.lng,c)
-    x.beginPath(); x.arc(px_,py,locked.has(p.id)?5:(wins[p.id]?4:2.6),0,7)
-    x.fillStyle = locked.has(p.id) ? '#77BC1F' : (p.gender==='woman'?'#EB6BAF':'#7ab8ff')
-    x.globalAlpha = wins[p.id]||locked.has(p.id) ? 1 : .38
-    x.fill(); x.globalAlpha=1
-    if(p.id===povId){ x.beginPath(); x.arc(px_,py,9,0,7); x.strokeStyle='#fff'; x.lineWidth=1.5; x.stroke() }
+    const on = !!wins[p.id], lk = locked.has(p.id)
+    const m = L.circleMarker([p.lat,p.lng],{
+      radius: lk?8:(on?6.5:4.5),
+      color: p.id===povId ? '#2C1020' : '#ffffff',
+      weight: p.id===povId ? 3 : 1.5,
+      fillColor: lk ? '#77BC1F' : (p.gender==='woman'?'#EB6BAF':'#3d7bd6'),
+      fillOpacity: on||lk ? .95 : .45,
+    }).addTo(LLAYER)
+    m.bindTooltip(p.name+(lk?' · 🔒 Verrou':on?' · Fenêtre ouverte':''),{direction:'top',opacity:.9})
+    m.on('click',()=>{ povId=p.id; renderPov(); draw() })
   }
 }
-$('map').addEventListener('click',e=>{
-  const c=$('map'), r=c.getBoundingClientRect()
-  const mx=(e.clientX-r.left)*(c.width/r.width), my=(e.clientY-r.top)*(c.height/r.height)
-  const people=(snap.people||[]).filter(p=>p.is_bot&&p.lat!=null)
-  let best=null,bd=1e9
-  for(const p of people){ const [px_,py]=proj(p.lat,p.lng,c); const d=(px_-mx)**2+(py-my)**2; if(d<bd){bd=d;best=p} }
-  if(best&&bd<900){ povId=best.id; renderPov(); draw() }
-})
 function renderPov(){
   const p=(snap.people||[]).find(x=>x.id===povId); if(!p){ $('pov').innerHTML='—'; return }
   const w=(snap.windows||[]).filter(x=>x.user_id===p.id)
@@ -561,5 +573,6 @@ function exportRun(){
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`clutch-lab-run-t${tick}.json`; a.click()
 }
 setInterval(()=>$('clock').textContent=new Date().toLocaleTimeString('fr-CH'),1000)
+initMap()   // carte claire visible dès l'ouverture (tuiles light_all, comme l'appli)
 </script>
 </body></html>
