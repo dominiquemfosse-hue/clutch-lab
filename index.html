@@ -520,7 +520,7 @@ function draw(){
   // Fenêtres (cercle de rayon réel, en km)
   for(const w of (snap.windows||[])){
     const p=people.find(q=>q.id===w.user_id); if(!p) continue
-    L.circle([w.lat||p.lat, w.lng||p.lng],{radius:(w.radius_km||5)*1000,color:'#EB6BAF',weight:1,opacity:.30,fillColor:'#EB6BAF',fillOpacity:.04}).addTo(LLAYER)
+    L.circle([w.lat||p.lat, w.lng||p.lng],{radius:(w.radius_km||5)*1000,color:'#EB6BAF',weight:1.2,opacity:.35,fill:false,dashArray:'3,6'}).addTo(LLAYER)
   }
   // Clutchs (traits)
   for(const cl of (snap.clutches||[]).slice(0,250)){
