@@ -6,80 +6,89 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 :root{
-  --plum:#532943; --pink:#EB6BAF; --green:#77BC1F; --bg:#1d0b16; --panel:#2a1020;
-  --card:rgba(255,255,255,.045); --line:rgba(255,191,158,.13); --ink:#f5e8de;
-  --ink2:rgba(245,232,222,.6); --gray:rgba(245,232,222,.35); --red:#ff6b81; --amber:#ffb347;
+  --plum:#532943; --pink:#EB6BAF; --green:#77BC1F;
+  --bg:#0a0e09; --panel:#131a0f; --card:#141a10; --steel:#1c2416;
+  --line:#2e3b25; --line2:#48582f;
+  --ink:#cde6b2; --ink2:#93ad7c; --gray:#5f744f;
+  --phos:#6ee84f; --amber:#ffb000; --red:#ff5544;
 }
-*{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,'Segoe UI',Inter,sans-serif}
-body{background:var(--bg);color:var(--ink);min-height:100vh}
-.top{display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:20}
-.top h1{font-size:17px;font-weight:900}
-.top h1 .clu{color:var(--pink)}.top h1 .tch{color:var(--green)}
-.top .sub{font-size:11px;color:var(--gray)}
-.top .mode{margin-left:auto;font-size:11px;font-weight:800;padding:4px 12px;border-radius:99px;border:1px solid var(--line)}
-.mode.local{color:var(--amber);border-color:var(--amber)}
-.mode.staging{color:var(--green);border-color:var(--green)}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Courier New',ui-monospace,Menlo,Consolas,monospace}
+body{min-height:100vh;color:var(--ink);background:radial-gradient(1100px 500px at 50% -180px,#18220f,transparent),var(--bg)}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:998;background:repeating-linear-gradient(0deg,rgba(0,0,0,.16) 0 1px,transparent 1px 3px)}
+.top{display:flex;align-items:center;gap:14px;padding:13px 20px;background:linear-gradient(#1b2312,#0e130a);position:sticky;top:0;z-index:20;
+  border-bottom:4px solid;border-image:repeating-linear-gradient(45deg,var(--amber) 0 12px,#0a0e09 12px 24px) 4}
+.top h1{font-size:17px;font-weight:900;letter-spacing:.12em}
+.top h1 .clu{color:var(--amber);text-shadow:0 0 8px rgba(255,176,0,.5)}.top h1 .tch{color:var(--phos);text-shadow:0 0 8px rgba(110,232,79,.5)}
+.top .sub{font-size:10.5px;color:var(--gray);letter-spacing:.06em}
+.lamp{width:10px;height:10px;border-radius:50%;background:var(--phos);box-shadow:0 0 10px var(--phos);animation:blink 2.4s infinite}
+@keyframes blink{50%{opacity:.3}}
+.top .mode{margin-left:auto;font-size:10.5px;font-weight:800;letter-spacing:.1em;padding:4px 12px;border-radius:3px;border:1px solid var(--line2);background:#050704}
+.mode.local{color:var(--amber);border-color:var(--amber);box-shadow:inset 0 0 8px rgba(255,176,0,.15)}
+.mode.staging{color:var(--phos);border-color:var(--phos);box-shadow:inset 0 0 8px rgba(110,232,79,.2)}
 .wrap{display:grid;grid-template-columns:330px 1fr 330px;gap:14px;padding:14px 16px;max-width:1600px;margin:0 auto}
 @media(max-width:1100px){.wrap{grid-template-columns:1fr}}
 .col{display:flex;flex-direction:column;gap:12px;min-width:0}
-.box{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:13px}
-.box h2{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.07em;color:var(--gray);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.box{background:linear-gradient(#161c10,#10150b);border:1px solid var(--line);border-radius:5px;padding:13px;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.55),inset 0 0 24px rgba(0,0,0,.35),0 2px 0 rgba(0,0,0,.5)}
+.box h2{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.16em;color:var(--amber);margin-bottom:10px;display:flex;align-items:center;gap:6px;border-bottom:1px dashed var(--line);padding-bottom:7px}
 .box h2 .r{margin-left:auto;font-size:10px;font-weight:700;color:var(--ink2);text-transform:none;letter-spacing:0}
-label{display:block;font-size:10.5px;font-weight:800;color:var(--ink2);margin:8px 0 3px;text-transform:uppercase;letter-spacing:.04em}
-input[type=text],input[type=password],input[type=email],input[type=number]{width:100%;background:rgba(0,0,0,.25);border:1px solid var(--line);border-radius:9px;padding:8px 10px;color:var(--ink);font-size:12.5px;outline:none;font-family:inherit}
-input:focus{border-color:var(--pink)}
-input[type=range]{width:100%;accent-color:var(--pink)}
-.btn{display:inline-block;background:var(--pink);color:#fff;border:none;border-radius:10px;padding:9px 14px;font-weight:800;font-size:12.5px;cursor:pointer;font-family:inherit}
-.btn.g{background:var(--green)}
-.btn.ghost{background:transparent;border:1.5px solid var(--line);color:var(--ink2)}
-.btn.warn{background:transparent;border:1.5px solid var(--red);color:var(--red)}
+label{display:block;font-size:10px;font-weight:800;color:var(--ink2);margin:8px 0 3px;text-transform:uppercase;letter-spacing:.1em}
+input[type=text],input[type=password],input[type=email],input[type=number]{width:100%;background:#050704;border:1px solid var(--line2);border-radius:3px;padding:8px 10px;color:var(--phos);font-size:12.5px;outline:none;font-family:inherit}
+input:focus{border-color:var(--amber);box-shadow:0 0 6px rgba(255,176,0,.3)}
+input[type=range]{width:100%;accent-color:var(--amber)}
+.btn{display:inline-block;background:var(--amber);color:#141005;border:1px solid #7a5600;border-radius:3px;padding:9px 14px;font-weight:800;font-size:12px;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:.07em;box-shadow:0 2px 0 rgba(0,0,0,.6)}
+.btn:active{transform:translateY(1px);box-shadow:0 1px 0 rgba(0,0,0,.6)}
+.btn.g{background:var(--phos);color:#0a0e09;border-color:#3d7a2a}
+.btn.ghost{background:#0e130a;border:1px solid var(--line2);color:var(--ink2)}
+.btn.warn{background:#150807;border:1px solid var(--red);color:var(--red)}
 .btn:disabled{opacity:.35;cursor:default}
-.btn.sm{padding:6px 10px;font-size:11px;border-radius:8px}
+.btn.sm{padding:6px 10px;font-size:11px;border-radius:3px}
 .rowb{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
 .kv{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;color:var(--ink2)}
 .kv b{color:var(--ink)}
 .stat{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.stat .s{background:rgba(0,0,0,.22);border-radius:10px;padding:9px 6px;text-align:center}
-.stat .n{font-size:19px;font-weight:900;color:var(--pink)}
-.stat .n.v{color:var(--green)}
-.stat .l{font-size:9px;color:var(--gray);text-transform:uppercase;font-weight:800;letter-spacing:.04em;margin-top:2px}
-canvas{width:100%;border-radius:12px;background:#160811;display:block}
-#map{height:440px;border-radius:12px;background:#e8e6e4}
+.stat .s{background:#050704;border:1px solid var(--line);border-radius:4px;padding:9px 6px;text-align:center;box-shadow:inset 0 0 10px rgba(0,0,0,.6)}
+.stat .n{font-size:19px;font-weight:900;color:var(--amber);text-shadow:0 0 7px rgba(255,176,0,.55)}
+.stat .n.v{color:var(--phos);text-shadow:0 0 7px rgba(110,232,79,.55)}
+.stat .l{font-size:9px;color:var(--gray);text-transform:uppercase;font-weight:800;letter-spacing:.08em;margin-top:2px}
+canvas{width:100%;border-radius:4px;background:#050704;display:block;border:1px solid var(--line)}
+#map{height:440px;border-radius:4px;background:#e8e6e4;border:2px solid var(--line2);box-shadow:0 0 0 4px #0e130a,inset 0 0 18px rgba(0,0,0,.25)}
 .helpol{font-size:12px;color:var(--ink2);line-height:1.6}
 .helpol b{color:var(--ink)}
 .helpol li{margin:0 0 7px 16px}
 .legend{display:flex;gap:12px;font-size:10px;color:var(--gray);margin-top:6px;flex-wrap:wrap}
 .legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px}
 .alerts{max-height:230px;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
-.al{font-size:11px;padding:8px 10px;border-radius:9px;background:rgba(255,107,129,.09);border-left:3px solid var(--red);line-height:1.45}
-.al .c{font-weight:900;color:var(--red)}
+.al{font-size:11px;padding:8px 10px;border-radius:3px;background:rgba(255,85,68,.08);border-left:3px solid var(--red);line-height:1.45;border-top:1px solid rgba(255,85,68,.15)}
+.al .c{font-weight:900;color:var(--red);text-shadow:0 0 6px rgba(255,85,68,.5)}
 .al .t{color:var(--gray);font-size:10px}
-.al.warn{background:rgba(255,179,71,.08);border-left-color:var(--amber)}
-.al.warn .c{color:var(--amber)}
-.log{max-height:190px;overflow-y:auto;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10.5px;line-height:1.55;color:var(--ink2);background:rgba(0,0,0,.25);border-radius:10px;padding:9px}
-.log .ok{color:var(--green)}.log .ko{color:var(--red)}.log .ts{color:var(--gray)}
+.al.warn{background:rgba(255,176,0,.07);border-left-color:var(--amber)}
+.al.warn .c{color:var(--amber);text-shadow:0 0 6px rgba(255,176,0,.4)}
+.log{max-height:190px;overflow-y:auto;font-size:10.5px;line-height:1.55;color:#8fbf76;background:#050704;border:1px solid var(--line);border-radius:3px;padding:9px;box-shadow:inset 0 0 14px rgba(0,0,0,.7)}
+.log .ok{color:var(--phos)}.log .ko{color:var(--red)}.log .ts{color:var(--gray)}
 .pill{display:inline-block;font-size:10px;font-weight:800;padding:2px 8px;border-radius:99px;background:rgba(0,0,0,.3);color:var(--ink2);margin:1px 2px 1px 0}
 .pill.f{color:var(--pink)}.pill.m{color:#7ab8ff}.pill.v{color:var(--green)}
-details{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-top:8px}
-summary{font-size:11px;font-weight:800;color:var(--ink2);cursor:pointer}
-pre{font-size:10px;color:var(--green);white-space:pre-wrap;word-break:break-all;background:rgba(0,0,0,.3);border-radius:8px;padding:8px;margin-top:6px}
+details{border:1px solid var(--line);border-radius:3px;padding:8px 10px;margin-top:8px;background:#0c1108}
+summary{font-size:11px;font-weight:800;color:var(--ink2);cursor:pointer;letter-spacing:.05em}
+pre{font-size:10px;color:var(--phos);white-space:pre-wrap;word-break:break-all;background:#050704;border:1px solid var(--line);border-radius:3px;padding:8px;margin-top:6px}
 .pov{font-size:12px;line-height:1.5}
 .pov .nm{font-size:15px;font-weight:900}
 .pov ul{list-style:none;margin-top:6px}
 .pov li{padding:5px 8px;border-radius:8px;background:rgba(0,0,0,.22);margin-bottom:5px;font-size:11px}
 .tag{font-size:9px;font-weight:900;padding:1px 6px;border-radius:8px;margin-right:5px}
-.tag.p{background:rgba(255,179,71,.2);color:var(--amber)}
-.tag.a{background:rgba(119,188,31,.2);color:var(--green)}
-.tag.r{background:rgba(255,107,129,.2);color:var(--red)}
+.tag.p{background:rgba(255,176,0,.15);color:var(--amber)}
+.tag.a{background:rgba(110,232,79,.15);color:var(--phos)}
+.tag.r{background:rgba(255,85,68,.15);color:var(--red)}
 .hint{font-size:10.5px;color:var(--gray);line-height:1.5;margin-top:6px}
-.clock{font-size:22px;font-weight:900;color:var(--ink);font-variant-numeric:tabular-nums}
+.clock{font-size:22px;font-weight:900;color:var(--phos);font-variant-numeric:tabular-nums;text-shadow:0 0 9px rgba(110,232,79,.6)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 </style></head><body>
 
 <div class="top">
-  <h1><span class="clu">CLU</span><span class="tch">TCH</span> LAB 🤖</h1>
-  <span class="sub">Labo Robots — ville vivante simulée · machine à tester · v1 (Dom, 10.07.2026)</span>
-  <span class="mode local" id="modeBadge">MODE DÉMO LOCALE</span>
+  <span class="lamp"></span>
+  <h1><span class="clu">CLU</span><span class="tch">TCH</span> LAB ☢</h1>
+  <span class="sub">ЦУП · ПУЛЬТ УПРАВЛЕНИЯ — labo robots · ville vivante simulée · v1.2 (Dom, 10.07.2026)</span>
+  <span class="mode local" id="modeBadge">РЕЖИМ: DÉMO LOCALE</span>
 </div>
 
 <div class="wrap">
@@ -327,13 +336,13 @@ async function connectStaging(){
   const uidv = data.user.id
   $('whoami').textContent = '✓ '+(data.user.email||'')+' · '+uidv.slice(0,8)+'…'
   $('adminSql').textContent = `-- SQL Editor de TON staging :\ncreate or replace function public.qa_is_admin()\nreturns boolean language sql stable as $$\n  select auth.uid() = any(array[\n    '${uidv}'\n  ]::uuid[]);\n$$;`
-  $('modeBadge').textContent='STAGING SUPABASE'; $('modeBadge').className='mode staging'
+  $('modeBadge').textContent='РЕЖИМ: STAGING SUPABASE'; $('modeBadge').className='mode staging'
   log('Connecté au staging comme '+data.user.email,'ok')
   await refreshHealth(); await refreshSnapshot(true)
 }
 function useLocal(){
   adapter = LocalAdapter(+$('seed').value||42)
-  $('modeBadge').textContent='MODE DÉMO LOCALE'; $('modeBadge').className='mode local'
+  $('modeBadge').textContent='РЕЖИМ: DÉMO LOCALE'; $('modeBadge').className='mode local'
   $('whoami').textContent='ville locale (émulation des règles serveur)'
   log('Mode démo locale activé — mêmes bots, même COQ, backend émulé.','ok')
   refreshHealth()
