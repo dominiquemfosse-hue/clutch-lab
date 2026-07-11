@@ -1,0 +1,63 @@
+<!DOCTYPE html><html lang="fr"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CLUTCH LAB — Guide David & Mel</title>
+<style>
+:root{--ink:#22303a;--ink2:#51626e;--amber:#b87700;--green:#2e7d32;--pink:#c2437f;--line:#a8b6be;--red:#c62828}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Courier New',ui-monospace,Menlo,monospace}
+body{background:#dfe6ea;color:var(--ink);padding:30px 16px;line-height:1.6}
+.page{max-width:720px;margin:0 auto;background:linear-gradient(#f3f6f8,#e9eef1);border:1px solid var(--line);border-radius:6px;padding:28px 30px;box-shadow:0 3px 10px rgba(40,60,75,.2)}
+h1{font-size:20px;letter-spacing:.1em;border-bottom:4px solid;border-image:repeating-linear-gradient(45deg,#f0a500 0 12px,#3a444b 12px 24px) 4;padding-bottom:10px;margin-bottom:4px}
+h1 .a{color:var(--amber)}h1 .g{color:var(--green)}
+.sub{font-size:11px;color:var(--ink2);margin-bottom:22px}
+h2{font-size:13px;color:var(--amber);text-transform:uppercase;letter-spacing:.12em;margin:22px 0 8px;border-bottom:1px dashed var(--line);padding-bottom:5px}
+p,li{font-size:13px;color:var(--ink)}
+ol,ul{margin:6px 0 6px 22px}
+li{margin-bottom:7px}
+b.k{color:var(--green)} b.w{color:var(--pink)} b.r{color:var(--red)}
+.btnlike{display:inline-block;background:#f0a500;color:#2b1d00;font-weight:800;font-size:11px;padding:2px 8px;border-radius:3px;border:1px solid #a97b00}
+.note{background:#fdf6e3;border-left:3px solid var(--amber);padding:10px 12px;font-size:12px;margin:12px 0;border-radius:3px}
+.url{background:#101b12;color:#6ee84f;padding:10px 14px;border-radius:4px;font-size:13px;font-weight:800;text-align:center;margin:10px 0;box-shadow:inset 0 0 12px rgba(0,0,0,.6)}
+a{color:var(--amber)}
+</style></head><body>
+<div class="page">
+  <h1><span class="a">CLUTCH</span> <span class="g">LAB</span> — guide express</h1>
+  <div class="sub">Le labo robots de Dom · la machine à tester Clutch sans 200 vrais testeurs · à l'usage de David & Mel</div>
+
+  <div class="url">https://dominiquemfosse-hue.github.io/clutch-lab/</div>
+
+  <h2>C'est quoi ?</h2>
+  <p>Une <b>ville vivante simulée</b> : des dizaines de bots qui ouvrent des <b class="k">Fenêtres</b>, s'envoient des <b class="k">Clutchs</b>, posent des <b class="k">Verrous</b>, refusent, créent des Événements — en passant par les <b>mêmes portes que les humains</b>. But : trouver les bugs et les trous de liquidité AVANT les vrais gens.</p>
+
+  <h2>La démo en 2 minutes</h2>
+  <ol>
+    <li>Ouvre l'URL ci-dessus (ordinateur conseillé).</li>
+    <li>Clique <span class="btnlike">MODE DÉMO LOCALE</span> puis <span class="btnlike">➕ CRÉER LES BOTS</span>.</li>
+    <li>Clique <span class="btnlike">▶️ LANCER LA SOIRÉE</span> — et regarde Lausanne s'animer.</li>
+  </ol>
+
+  <h2>Comment lire la carte</h2>
+  <ul>
+    <li>Point <b class="w">rose</b> = femme · point <b style="color:#2d6bb8">bleu</b> = homme · point <b class="k">vert</b> = en Verrou.</li>
+    <li>Cercle rose pointillé = sa Fenêtre (son rayon réel en km).</li>
+    <li>Trait gris pointillé = Clutch en attente · trait <b class="k">vert</b> = Verrou posé.</li>
+    <li><b>Clique n'importe quel bot</b> → son POV : sa Fenêtre, ses clutchs reçus/envoyés.</li>
+  </ul>
+
+  <h2>Les 3 cadrans à surveiller</h2>
+  <ul>
+    <li><b>📊 Métriques</b> — la courbe rose (Fenêtres) et verte (Verrous) : c'est la <b>liquidité</b>. Si beaucoup de Fenêtres mais zéro Verrou → « zone morte », la ville ne prend pas à cette densité.</li>
+    <li><b class="r">🐓 LE COQ</b> — le gardien des invariants. S'il crie (rouge), un principe de la Forteresse a cassé : double-booking, RDV physiquement impossible (le Cône), boîte ♀ saturée… Chaque alerte donne le tick + la seed pour <b>rejouer exactement</b> le bug.</li>
+    <li><b>📜 Journal</b> — chaque action des bots, y compris les <b>refus serveur</b> (COOLDOWN, PAIR_BUSY, INBOX_FULL, OVERLAP). Ces refus sont une BONNE nouvelle : les gardes tiennent.</li>
+  </ul>
+
+  <h2>Jouer avec la ville</h2>
+  <p>Les curseurs « Scénario de soirée » = le panel statistique : densité de Fenêtres, agressivité d'envoi, taux d'acceptation. Exemples à tester devant eux : <b>zone creuse</b> (10 bots, tout au minimum) vs <b>Lausanne samedi 20h</b> (200 bots, tout au maximum). Même seed = même film, rejouable à l'identique.</p>
+
+  <div class="note"><b>Deux modes :</b> « Démo locale » = ville émulée dans le navigateur, rien à installer (parfait pour cette démo). « Staging Supabase » = les bots écrivent de vraies lignes dans la base de test de Dom — jamais la prod.</div>
+
+  <h2>Vocabulaire (gravé)</h2>
+  <p><b class="k">Fenêtre</b> = dispo ouverte · <b class="k">Clutch</b> = proposition lieu+heure · <b class="k">Verrou</b> = RDV confirmé · <b class="k">Le Cône</b> = faisabilité espace-temps · <b class="k">Le COQ</b> = validateur d'invariants. Jamais : match, swipe, like.</p>
+
+  <div class="sub" style="margin-top:24px">CLUTCH LAB v1.2 · Dom · 10.07.2026 · retours → mur /collab</div>
+</div>
+</body></html>
