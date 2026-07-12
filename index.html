@@ -36,6 +36,7 @@ label{display:block;font-size:10px;font-weight:800;color:var(--ink2);margin:8px 
 input[type=text],input[type=password],input[type=email],input[type=number]{width:100%;background:#fff;border:1px solid var(--line2);border-radius:3px;padding:8px 10px;color:var(--ink);font-size:12.5px;outline:none;font-family:inherit;box-shadow:inset 0 1px 3px rgba(40,60,75,.15)}
 input:focus{border-color:var(--amber);box-shadow:0 0 5px rgba(184,119,0,.35)}
 input[type=range]{width:100%;accent-color:var(--amberBtn)}
+select{width:100%;background:#fff;border:1px solid var(--line2);border-radius:3px;padding:8px 10px;color:var(--ink);font-size:12.5px;outline:none;font-family:inherit}
 .btn{display:inline-block;background:var(--amberBtn);color:#2b1d00;border:1px solid #a97b00;border-radius:3px;padding:9px 14px;font-weight:800;font-size:12px;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:.07em;box-shadow:0 2px 0 rgba(90,60,0,.45),inset 0 1px 0 rgba(255,255,255,.4)}
 .btn:active{transform:translateY(1px);box-shadow:0 1px 0 rgba(90,60,0,.45)}
 .btn.g{background:#63b74c;color:#0e2408;border-color:#3d7a2a}
@@ -140,6 +141,12 @@ $$;</pre>
         <div><label>Nombre de bots</label><input type="number" id="nBots" value="40" min="2" max="500"></div>
         <div><label>Seed (rejouable)</label><input type="number" id="seed" value="42"></div>
       </div>
+      <label>Zone</label>
+      <select id="zone" onchange="zoneChanged()">
+        <option value="lausanne">Lausanne</option>
+        <option value="romandie">Suisse romande — « Clutch Romandie »</option>
+      </select>
+      <div class="hint">🧠 <b>Modèle de comportement humain</b> — chaque bot reçoit un persona : 🙂 normal 40% · 🪑 passif (ouvre puis ne fait rien) 20% · 🤔 sélectif 15% · 🚀 à fond la caisse 15% · 👻 fantôme (ne répond JAMAIS) 10%. Visible dans le POV.</div>
       <div class="rowb">
         <button class="btn g" onclick="seedBots()">➕ Créer les bots</button>
         <button class="btn warn" onclick="wipeBots()">🗑 Supprimer bots</button>
@@ -150,6 +157,12 @@ $$;</pre>
 
     <div class="box">
       <h2>🎛️ Scénario de soirée</h2>
+      <label>Situations de densité (les 3 de David)</label>
+      <div class="rowb" style="margin:2px 0 8px">
+        <button class="btn ghost sm" onclick="preset(1)">1 · Sous-effectif</button>
+        <button class="btn ghost sm" onclick="preset(2)">2 · Moyenne</button>
+        <button class="btn ghost sm" onclick="preset(3)">3 · Extrême</button>
+      </div>
       <label>% qui ouvrent une Fenêtre / tick <b id="vWin">25%</b></label>
       <input type="range" id="pWin" min="0" max="100" value="25" oninput="vWin.textContent=this.value+'%'">
       <label>Proba d'envoyer un Clutch / tick <b id="vSend">30%</b></label>
@@ -256,6 +269,55 @@ let adapter=null, snap={people:[],windows:[],clutches:[],events:[]}, running=fal
 let tick=0, rng=mulberry32(42), alerts=[], history=[], counters={sent:0,accept:0,refuse:0,events:0}
 let povId=null, runLog=[]
 
+// ── 🧠 MODÈLE DE COMPORTEMENT HUMAIN — personas statistiques (David 10.07) ────
+//    « le gars qui ne fait rien, le gars à fond la caisse, le connard qui ne répond jamais… »
+//    Chaque bot reçoit un persona (déterministe : hash(id, seed) → rejouable).
+//    Les curseurs du scénario restent le climat global ; le persona est le caractère individuel.
+const PERSONAS = {
+  normal:  {ico:'🙂', label:'normal',        win:1.0, send:1.0,  accept:1.0,  refuse:1.0},
+  passif:  {ico:'🪑', label:'passif',        win:1.2, send:0.05, accept:0.15, refuse:0.3},
+  selectif:{ico:'🤔', label:'sélectif',      win:0.9, send:0.4,  accept:0.25, refuse:2.2},
+  fonceur: {ico:'🚀', label:'à fond',        win:1.5, send:2.6,  accept:1.6,  refuse:0.5},
+  fantome: {ico:'👻', label:'fantôme',       win:0.8, send:0.0,  accept:0.0,  refuse:0.0},
+}
+const PERSONA_MIX = [['normal',.40],['passif',.20],['selectif',.15],['fonceur',.15],['fantome',.10]]
+const personaCache = {}
+function personaOf(id){
+  if(personaCache[id]) return personaCache[id]
+  let h=((+$('seed').value||42)>>>0); const s=String(id)
+  for(let i=0;i<s.length;i++){ h=Math.imul(h^s.charCodeAt(i),2654435761)>>>0 }
+  let x=(h%1000)/1000, acc=0, chosen='normal'
+  for(const [k,p] of PERSONA_MIX){ acc+=p; if(x<acc){ chosen=k; break } }
+  return personaCache[id]=chosen
+}
+const pv = (id,k) => PERSONAS[personaOf(id)][k]
+const pcap = v => Math.min(.95, v)
+
+// ── 🗺️ ZONES — Lausanne seule ou « CLUTCH ROMANDIE » (villes pondérées) ───────
+const CITIES=[['Lausanne',46.5197,6.6323,.30],['Genève',46.2044,6.1432,.28],['Fribourg',46.8065,7.1620,.08],
+  ['Vevey-Montreux',46.4628,6.8419,.07],['Neuchâtel',46.9900,6.9293,.06],['Sion',46.2331,7.3606,.05],
+  ['Yverdon',46.7785,6.6412,.05],['Morges',46.5091,6.4977,.04],['Nyon',46.3832,6.2396,.04],['Bulle',46.6194,7.0567,.03]]
+function spawnPos(r){
+  if((($('zone')||{}).value)!=='romandie'){
+    const ang=r()*Math.PI*2, rr=Math.sqrt(r())*5
+    return [LSN[0]+(rr/111)*Math.cos(ang), LSN[1]+(rr/77)*Math.sin(ang)]
+  }
+  let x=r(), city=CITIES[0]
+  for(const c of CITIES){ x-=c[3]; if(x<=0){ city=c; break } }
+  const ang=r()*Math.PI*2, rr=Math.sqrt(r())*3
+  return [city[1]+(rr/111)*Math.cos(ang), city[2]+(rr/77)*Math.sin(ang)]
+}
+function zoneChanged(){ if(LMAP){ $('zone').value==='romandie' ? LMAP.setView([46.55,6.75],9) : LMAP.setView(LSN,13) } }
+
+// ── 🎚️ LES 3 SITUATIONS DE DENSITÉ (presets David) ───────────────────────────
+function preset(n){
+  const set=(id,v)=>{ $(id).value=v; $(id).dispatchEvent(new Event('input')) }
+  if(n===1){ $('nBots').value=12;  set('pWin',15); set('pSend',15); set('pAcc',35); set('pRef',30); set('pEvt',2) }
+  if(n===2){ $('nBots').value=60;  set('pWin',25); set('pSend',30); set('pAcc',45); set('pRef',25); set('pEvt',4) }
+  if(n===3){ $('nBots').value=250; set('pWin',40); set('pSend',55); set('pAcc',55); set('pRef',20); set('pEvt',8) }
+  log('Situation '+n+' ('+(n===1?'sous-effectif — pas de liquidité':n===2?'densité moyenne':'densité EXTRÊME')+') chargée. Recrée les bots pour appliquer la population.','ok')
+}
+
 function log(msg, cls=''){ const d=$('log'); runLog.push(msg)
   d.innerHTML += `<div><span class="ts">[t${tick}]</span> <span class="${cls}">${msg}</span></div>`
   d.scrollTop = d.scrollHeight; if(d.children.length>400) d.removeChild(d.firstChild) }
@@ -297,10 +359,10 @@ function LocalAdapter(seed){
   return {
     kind:'local',
     createBots: async n=>{ for(let i=0;i<n;i++){ const g=r()<0.5?'woman':'man'
-      const ang=r()*Math.PI*2, rr=Math.sqrt(r())*5
+      const [plat,plng]=spawnPos(r)
       people.push({id:uid(),name:(g==='woman'?F[Math.floor(r()*F.length)]:M[Math.floor(r()*M.length)])+' 🤖',is_bot:true,gender:g,
         age:25+Math.floor(r()*21),reliability:40+Math.floor(r()*60),is_available:false,
-        lat:LSN[0]+(rr/111)*Math.cos(ang), lng:LSN[1]+(rr/77)*Math.sin(ang), looking_for:'all'})}
+        lat:plat, lng:plng, looking_for:'all'})}
       return {ok:true,created:n} },
     deleteBots: async ()=>{ const n=people.length; people=[];avails=[];clutches=[];events=[]; return {ok:true,deleted:n} },
     setAvail: async (a,from,until,lat,lng,radius)=>{
@@ -400,10 +462,10 @@ async function runTick(){
   const winByUser=Object.fromEntries((snap.windows||[]).map(w=>[w.user_id,w]))
   const pend=(snap.clutches||[]).filter(c=>c.status==='pending')
 
-  // 1) ouvrir des Fenêtres
+  // 1) ouvrir des Fenêtres (pondéré par le persona)
   for(const p of people){
     if(winByUser[p.id]) continue
-    if(rng()<cfg.pWin){
+    if(rng()<pcap(cfg.pWin*pv(p.id,'win'))){
       const durH=1+Math.floor(rng()*3), from=new Date(), until=new Date(Date.now()+durH*3600000)
       const rad=3+Math.floor(rng()*8)
       const rr=await adapter.setAvail(p.id, from.toISOString(), until.toISOString(), p.lat, p.lng, rad)
@@ -417,7 +479,7 @@ async function runTick(){
   const wins=(snap.windows||[])
   const online=people.filter(p=>wins.some(w=>w.user_id===p.id))
   for(const p of online){
-    if(rng()>cfg.pSend) continue
+    if(rng()>pcap(cfg.pSend*pv(p.id,'send'))) continue   // 🪑 passif n'envoie presque jamais · 👻 jamais · 🚀 beaucoup
     const targets=online.filter(o=>o.id!==p.id && o.gender!==p.gender)   // v1 : hétéro simple, symétrie testée par le serveur
     if(!targets.length) continue
     const t=targets[Math.floor(rng()*targets.length)]
@@ -435,18 +497,20 @@ async function runTick(){
   }
   await refreshSnapshot(false)
 
-  // 3) répondre aux pendings
+  // 3) répondre aux pendings (persona : 👻 ne répond JAMAIS, 🤔 refuse beaucoup, 🚀 accepte large)
   for(const c of (snap.clutches||[]).filter(x=>x.status==='pending')){
     const me=people.find(p=>p.id===c.receiver_id); if(!me) continue
+    const pA=pcap(cfg.pAcc*pv(me.id,'accept')), pR=pcap(cfg.pRef*pv(me.id,'refuse'))
     const roll=rng()
-    if(roll<cfg.pAcc){
+    if(roll<pA){
       const rr=await adapter.accept(c.receiver_id,c.sender_id)
       if(rr.ok){ counters.accept++; log(`🔒 VERROU : ${nameOf(c.sender_id)} ↔ ${nameOf(c.receiver_id)}`,'ok') }
       else log(`✋ accept refusé serveur (${rr.code}) — ${rr.message||''}`)
-    } else if(roll<cfg.pAcc+cfg.pRef){
+    } else if(roll<pA+pR){
       const rr=await adapter.refuse(c.receiver_id,c.sender_id)
       if(rr.ok){ counters.refuse++; log(`✕ ${nameOf(c.receiver_id)} refuse ${nameOf(c.sender_id)} (cooldown 48h)`) }
     }
+    // sinon : ignore (👻 fantôme laisse toujours expirer — comportement humain voulu)
   }
 
   // 4) events
@@ -572,7 +636,8 @@ function renderPov(){
   const inb=(snap.clutches||[]).filter(c=>c.receiver_id===p.id).slice(0,6)
   const out=(snap.clutches||[]).filter(c=>c.sender_id===p.id).slice(0,6)
   const tag=s=>s==='pending'?'<span class="tag p">PENDING</span>':s==='accepted'?'<span class="tag a">VERROU</span>':`<span class="tag r">${(s||'').toUpperCase()}</span>`
-  $('pov').innerHTML = `<div class="nm">${p.name} <span class="pill ${p.gender==='woman'?'f':'m'}">${p.gender==='woman'?'♀':'♂'} ${p.age}</span> <span class="pill">fiab. ${p.reliability??'—'}</span></div>
+  const per=PERSONAS[personaOf(p.id)]
+  $('pov').innerHTML = `<div class="nm">${p.name} <span class="pill ${p.gender==='woman'?'f':'m'}">${p.gender==='woman'?'♀':'♂'} ${p.age}</span> <span class="pill">${per.ico} ${per.label}</span> <span class="pill">fiab. ${p.reliability??'—'}</span></div>
     <div class="hint">${w.length? '🪟 Fenêtre ouverte jusqu\'à '+new Date(w[0].end_at).toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'})+' · rayon '+(w[0].radius_km||'—')+' km' : 'Pas de Fenêtre ouverte.'}</div>
     <ul>${inb.map(c=>`<li>${tag(c.status)} reçu de <b>${nameOf(c.sender_id)}</b> · ${c.venue||''} · ${new Date(c.proposed_time).toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'})}</li>`).join('')||''}
     ${out.map(c=>`<li>${tag(c.status)} envoyé à <b>${nameOf(c.receiver_id)}</b> · ${c.venue||''} · ${new Date(c.proposed_time).toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'})}</li>`).join('')||''}</ul>`
@@ -595,7 +660,8 @@ async function ambianceTick(){
       const wait=(+$('humDelay').value||2)*60000*(0.5+rng())
       if(now-humanSeen[c.id] >= wait){
         const bot=people.find(p=>p.id===c.receiver_id)
-        if(rng()<0.7){ const r=await adapter.accept(c.receiver_id,c.sender_id)
+        if(pv(c.receiver_id,'accept')===0){ delete humanSeen[c.id]; continue }   // 👻 fantôme : même un humain n'a pas de réponse (assumé)
+        if(rng()<pcap(0.7*pv(c.receiver_id,'accept'))){ const r=await adapter.accept(c.receiver_id,c.sender_id)
           if(r.ok) log(`🛸 ${bot?bot.name:'bot'} accepte le Clutch d'un HUMAIN → Verrou 🔒`,'ok')
           else log(`🛸 accept humain refusé serveur (${r.code})`) }
         else { const r=await adapter.refuse(c.receiver_id,c.sender_id)
@@ -608,7 +674,7 @@ async function ambianceTick(){
   // 2) Vie douce : quelques Fenêtres s'ouvrent (2-4h, rythme humain)
   const winByUser=Object.fromEntries((snap.windows||[]).map(w=>[w.user_id,w]))
   for(const p of people){
-    if(!winByUser[p.id] && rng()<0.10){
+    if(!winByUser[p.id] && rng()<0.10*pv(p.id,'win')){
       const durH=2+Math.floor(rng()*3)
       const r=await adapter.setAvail(p.id,new Date().toISOString(),new Date(now+durH*3600000).toISOString(),p.lat,p.lng,4+Math.floor(rng()*6))
       if(r.ok) log(`🛸 ${p.name} ouvre une Fenêtre (${durH}h)`)
@@ -620,7 +686,9 @@ async function ambianceTick(){
   const wins2=(snap.windows||[]), online=people.filter(p=>wins2.some(w=>w.user_id===p.id))
   for(let k=0;k<2;k++){
     if(online.length<4 || rng()<0.45) continue
-    const a=online[Math.floor(rng()*online.length)]
+    const senders=online.filter(o=>pv(o.id,'send')>0)
+    if(!senders.length) continue
+    const a=senders[Math.floor(rng()*senders.length)]
     const tg=online.filter(o=>o.id!==a.id&&o.gender!==a.gender)
     if(!tg.length) continue
     const b=tg[Math.floor(rng()*tg.length)]
@@ -635,8 +703,10 @@ async function ambianceTick(){
   // 4) Réponses entre bots (lentes, naturelles) + un Événement de temps en temps
   for(const c of (snap.clutches||[]).filter(x=>x.status==='pending')){
     if(isBotId(c.receiver_id)&&isBotId(c.sender_id)&&rng()<0.25){
-      if(rng()<0.6){ const r=await adapter.accept(c.receiver_id,c.sender_id); if(r.ok){counters.accept++; log(`🛸🔒 VERROU : ${nameOf(c.sender_id)} ↔ ${nameOf(c.receiver_id)}`,'ok')} }
-      else { const r=await adapter.refuse(c.receiver_id,c.sender_id); if(r.ok){counters.refuse++; log(`🛸✕ ${nameOf(c.receiver_id)} refuse ${nameOf(c.sender_id)}`)} }
+      const pA=pv(c.receiver_id,'accept'), pR=pv(c.receiver_id,'refuse')
+      if(pA===0&&pR===0) continue   // 👻
+      if(rng()<pcap(0.6*pA)){ const r=await adapter.accept(c.receiver_id,c.sender_id); if(r.ok){counters.accept++; log(`🛸🔒 VERROU : ${nameOf(c.sender_id)} ↔ ${nameOf(c.receiver_id)}`,'ok')} }
+      else if(rng()<pcap(0.5*pR)){ const r=await adapter.refuse(c.receiver_id,c.sender_id); if(r.ok){counters.refuse++; log(`🛸✕ ${nameOf(c.receiver_id)} refuse ${nameOf(c.sender_id)}`)} }
     }
   }
   if(rng()<0.07 && online.length){
