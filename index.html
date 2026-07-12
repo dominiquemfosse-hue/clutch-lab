@@ -748,5 +748,25 @@ function exportRun(){
 }
 setInterval(()=>$('clock').textContent=new Date().toLocaleTimeString('fr-CH'),1000)
 initMap()   // carte claire visible dès l'ouverture (tuiles light_all, comme l'appli)
+
+// 🔁 RECONNEXION AUTO : supabase-js garde la session dans le navigateur → on la restaure au chargement
+async function tryRestore(){
+  const url=localStorage.getItem('lab_url'), key=localStorage.getItem('lab_key')
+  if(!url||!key) return
+  try{
+    const client = supabase.createClient(url,key)
+    const {data} = await client.auth.getSession()
+    if(data && data.session){
+      adapter = SupaAdapter(client)
+      const u = data.session.user
+      $('whoami').textContent='✓ '+(u.email||'')+' · '+u.id.slice(0,8)+'… (session restaurée)'
+      $('adminSql').textContent = "-- SQL Editor de TON staging :\ncreate or replace function public.qa_is_admin()\nreturns boolean language sql stable as $$\n  select auth.uid() = any(array[\n    '"+u.id+"'\n  ]::uuid[]);\n$$;"
+      $('modeBadge').textContent='РЕЖИМ: STAGING SUPABASE'; $('modeBadge').className='mode staging'
+      log('Session staging restaurée automatiquement ('+(u.email||'')+').','ok')
+      await refreshHealth(); await refreshSnapshot(true)
+    }
+  }catch(e){ log('restauration session : '+e.message,'ko') }
+}
+tryRestore()
 </script>
 </body></html>
