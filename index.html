@@ -342,7 +342,16 @@ function SupaAdapter(client){
     accept:(actor,other)=> R('admin_accept_clutch',{p_actor:actor,p_counterparty:other}),
     refuse:(actor,other)=> R('admin_refuse_clutch',{p_actor:actor,p_counterparty:other}),
     createEvent:(actor,title,at,lat,lng,spots)=> R('admin_create_event',{p_actor:actor,p_title:title,p_starts_at:at,p_lat:lat,p_lng:lng,p_spots:spots}),
-    snapshot: async ()=>{ const r=await R('qa_city_snapshot',{}); return r.ok?(r.data||r):r },
+    snapshot: async ()=>{ const r=await R('qa_city_snapshot',{}); const s = r.ok?(r.data||r):r
+      // 🔎 TROUVAILLE STAGING (13.07) : admin_set_availability écrit profiles mais PAS availabilities
+      //    → windows[] vide alors que les bots sont dispo. On synthétise les Fenêtres depuis les profils.
+      if(s && s.people){
+        const have=new Set((s.windows||[]).map(w=>w.user_id)), now=Date.now()
+        const synth=(s.people||[]).filter(p=>p.is_available && p.until && +new Date(p.until)>now && p.lat!=null && !have.has(p.id))
+          .map(p=>({id:'pw_'+p.id, user_id:p.id, start_at:p.from, end_at:p.until, lat:p.lat, lng:p.lng, radius_km:p.radius, active:true, synth:true}))
+        s.windows=(s.windows||[]).concat(synth)
+      }
+      return s },
     health: async ()=>{ const {data,error}=await client.rpc('lab_health',{}); return error?[{kind:'ERR',objet:'lab_health',etat:error.message}]:(data||[]) },
   }
 }
