@@ -168,6 +168,19 @@ $$;</pre>
       </div>
       <div class="hint">Chaque tick : les bots ouvrent des Fenêtres, se clutchent, répondent — via les <b>vraies RPC</b> (mêmes portes que les humains). Le COQ vérifie les invariants après chaque tick.</div>
     </div>
+
+    <div class="box">
+      <h2>🛸 Pilote automatique — ambiance app</h2>
+      <div class="hint" style="margin:0 0 6px">La ville vit TOUTE SEULE, à un rythme humain : les bots ouvrent des Fenêtres, s'animent <b>entre eux</b>, créent des Événements — et <b>répondent en priorité aux vrais humains</b> (toi, David, Mel) après un délai naturel, comme des vraies personnes. Branché sur le staging, vous le VERREZ dans l'app. Laisse l'onglet ouvert.</div>
+      <label>Rythme de vie <b id="vAmb">20</b> s / battement</label>
+      <input type="range" id="ambTick" min="8" max="60" value="20" oninput="vAmb.textContent=this.value">
+      <label>Délai de réponse aux humains <b id="vHum">2</b> min environ</label>
+      <input type="range" id="humDelay" min="1" max="6" value="2" oninput="vHum.textContent=this.value">
+      <div class="rowb">
+        <button class="btn g" id="btnAmb" onclick="toggleAmbiance()">🛸 Démarrer l'ambiance</button>
+      </div>
+      <div class="hint">⚖️ Pour les TESTS et la beta privée. Pour un lancement public, on en reparle : des bots qui passent pour des vrais → risque confiance/juridique, et un bot qui pose un Verrou sans venir = poison pour « quand on dit oui, on vient ».</div>
+    </div>
   </div>
 
   <!-- ══════════ COLONNE CENTRE : ville + horloge + POV ══════════ -->
@@ -564,6 +577,88 @@ function renderPov(){
     <ul>${inb.map(c=>`<li>${tag(c.status)} reçu de <b>${nameOf(c.sender_id)}</b> · ${c.venue||''} · ${new Date(c.proposed_time).toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'})}</li>`).join('')||''}
     ${out.map(c=>`<li>${tag(c.status)} envoyé à <b>${nameOf(c.receiver_id)}</b> · ${c.venue||''} · ${new Date(c.proposed_time).toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'})}</li>`).join('')||''}</ul>`
 }
+
+// ── 🛸 PILOTE AUTOMATIQUE (ambiance app) ─────────────────────────────────────
+//    Rythme humain, en continu. Règle d'or : les bots répondent VITE aux humains,
+//    et vivent doucement entre eux (fenêtres, clutchs, events). Cône respecté (bots honnêtes).
+let ambOn=false, ambTimer=null, humanSeen={}
+const isBotId = id => (snap.people||[]).some(p=>p.id===id&&p.is_bot)
+async function ambianceTick(){
+  if(!adapter) return
+  await refreshSnapshot(false)
+  const people=(snap.people||[]).filter(p=>p.is_bot), now=Date.now()
+
+  // 1) PRIORITÉ HUMAINS : tout pending reçu par un bot depuis un NON-bot → réponse après délai naturel
+  for(const c of (snap.clutches||[]).filter(x=>x.status==='pending')){
+    if(isBotId(c.receiver_id) && !isBotId(c.sender_id)){
+      humanSeen[c.id] ||= now
+      const wait=(+$('humDelay').value||2)*60000*(0.5+rng())
+      if(now-humanSeen[c.id] >= wait){
+        const bot=people.find(p=>p.id===c.receiver_id)
+        if(rng()<0.7){ const r=await adapter.accept(c.receiver_id,c.sender_id)
+          if(r.ok) log(`🛸 ${bot?bot.name:'bot'} accepte le Clutch d'un HUMAIN → Verrou 🔒`,'ok')
+          else log(`🛸 accept humain refusé serveur (${r.code})`) }
+        else { const r=await adapter.refuse(c.receiver_id,c.sender_id)
+          if(r.ok) log(`🛸 ${bot?bot.name:'bot'} décline poliment le Clutch d'un humain`) }
+        delete humanSeen[c.id]
+      }
+    }
+  }
+
+  // 2) Vie douce : quelques Fenêtres s'ouvrent (2-4h, rythme humain)
+  const winByUser=Object.fromEntries((snap.windows||[]).map(w=>[w.user_id,w]))
+  for(const p of people){
+    if(!winByUser[p.id] && rng()<0.10){
+      const durH=2+Math.floor(rng()*3)
+      const r=await adapter.setAvail(p.id,new Date().toISOString(),new Date(now+durH*3600000).toISOString(),p.lat,p.lng,4+Math.floor(rng()*6))
+      if(r.ok) log(`🛸 ${p.name} ouvre une Fenêtre (${durH}h)`)
+    }
+  }
+  await refreshSnapshot(false)
+
+  // 3) Un ou deux Clutchs ENTRE BOTS par battement (cône respecté — bots honnêtes)
+  const wins2=(snap.windows||[]), online=people.filter(p=>wins2.some(w=>w.user_id===p.id))
+  for(let k=0;k<2;k++){
+    if(online.length<4 || rng()<0.45) continue
+    const a=online[Math.floor(rng()*online.length)]
+    const tg=online.filter(o=>o.id!==a.id&&o.gender!==a.gender)
+    if(!tg.length) continue
+    const b=tg[Math.floor(rng()*tg.length)]
+    const mLat=(a.lat+b.lat)/2, mLng=(a.lng+b.lng)/2
+    const inMin=45+Math.floor(rng()*150)
+    const need=Math.max(TRAVEL_MS(havKm(a.lat,a.lng,mLat,mLng)),TRAVEL_MS(havKm(b.lat,b.lng,mLat,mLng)))+CONE_BUFFER
+    if(need>inMin*MIN) continue
+    const r=await adapter.sendClutch(a.id,b.id,'Café Riponne 🤖',new Date(now+inMin*MIN).toISOString(),60,mLat,mLng)
+    if(r.ok){ counters.sent++; log(`🛸 ${a.name} → Clutch → ${b.name}`) }
+  }
+
+  // 4) Réponses entre bots (lentes, naturelles) + un Événement de temps en temps
+  for(const c of (snap.clutches||[]).filter(x=>x.status==='pending')){
+    if(isBotId(c.receiver_id)&&isBotId(c.sender_id)&&rng()<0.25){
+      if(rng()<0.6){ const r=await adapter.accept(c.receiver_id,c.sender_id); if(r.ok){counters.accept++; log(`🛸🔒 VERROU : ${nameOf(c.sender_id)} ↔ ${nameOf(c.receiver_id)}`,'ok')} }
+      else { const r=await adapter.refuse(c.receiver_id,c.sender_id); if(r.ok){counters.refuse++; log(`🛸✕ ${nameOf(c.receiver_id)} refuse ${nameOf(c.sender_id)}`)} }
+    }
+  }
+  if(rng()<0.07 && online.length){
+    const h=online[Math.floor(rng()*online.length)]
+    const evs=['Pétanque Vidy 🎯','Apéro Flon 🍹','Jogging Sauvabelin 🏃','Jam session 🎷','Café philo ☕']
+    const ev=evs[Math.floor(rng()*evs.length)]
+    const r=await adapter.createEvent(h.id,ev,new Date(now+3*3600000).toISOString(),h.lat,h.lng,6+Math.floor(rng()*6))
+    if(r.ok){ counters.events++; log(`🛸🎪 ${h.name} crée « ${ev} »`) }
+  }
+
+  await refreshSnapshot(true); runCoq(); updateMetrics(true); renderPov()
+}
+function toggleAmbiance(){
+  ambOn=!ambOn
+  $('btnAmb').textContent = ambOn ? '⏸ Stopper l\'ambiance' : '🛸 Démarrer l\'ambiance'
+  $('btnAmb').className = ambOn ? 'btn' : 'btn g'
+  if(ambOn){ if(!adapter) useLocal(); log('🛸 Pilote automatique ENCLENCHÉ — la ville vit toute seule.','ok'); ambLoop() }
+  else clearTimeout(ambTimer)
+}
+async function ambLoop(){ if(!ambOn) return
+  try{ await ambianceTick() }catch(e){ log('⛔ ambiance : '+e.message,'ko') }
+  ambTimer=setTimeout(ambLoop,(+$('ambTick').value||20)*1000) }
 
 // ── CONTRÔLES ────────────────────────────────────────────────────────────────
 function toggleRun(){
