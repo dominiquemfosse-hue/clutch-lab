@@ -4,60 +4,63 @@
 <style>
 :root{--ink:#22303a;--ink2:#51626e;--amber:#b87700;--green:#2e7d32;--pink:#c2437f;--line:#a8b6be;--red:#c62828}
 *{margin:0;padding:0;box-sizing:border-box;font-family:'Courier New',ui-monospace,Menlo,monospace}
-body{background:#dfe6ea;color:var(--ink);padding:30px 16px;line-height:1.6}
-.page{max-width:720px;margin:0 auto;background:linear-gradient(#f3f6f8,#e9eef1);border:1px solid var(--line);border-radius:6px;padding:28px 30px;box-shadow:0 3px 10px rgba(40,60,75,.2)}
-h1{font-size:20px;letter-spacing:.1em;border-bottom:4px solid;border-image:repeating-linear-gradient(45deg,#f0a500 0 12px,#3a444b 12px 24px) 4;padding-bottom:10px;margin-bottom:4px}
+body{background:#dfe6ea;color:var(--ink);padding:30px 16px;line-height:1.55}
+.page{max-width:760px;margin:0 auto;background:linear-gradient(#f3f6f8,#e9eef1);border:1px solid var(--line);border-radius:6px;padding:26px 30px;box-shadow:0 3px 10px rgba(40,60,75,.2)}
+h1{font-size:19px;letter-spacing:.1em;border-bottom:4px solid;border-image:repeating-linear-gradient(45deg,#f0a500 0 12px,#3a444b 12px 24px) 4;padding-bottom:10px;margin-bottom:4px}
 h1 .a{color:var(--amber)}h1 .g{color:var(--green)}
-.sub{font-size:11px;color:var(--ink2);margin-bottom:22px}
-h2{font-size:13px;color:var(--amber);text-transform:uppercase;letter-spacing:.12em;margin:22px 0 8px;border-bottom:1px dashed var(--line);padding-bottom:5px}
-p,li{font-size:13px;color:var(--ink)}
-ol,ul{margin:6px 0 6px 22px}
-li{margin-bottom:7px}
+.sub{font-size:11px;color:var(--ink2);margin-bottom:18px}
+h2{font-size:12.5px;color:var(--amber);text-transform:uppercase;letter-spacing:.12em;margin:18px 0 7px;border-bottom:1px dashed var(--line);padding-bottom:4px}
+p,li,td{font-size:12.5px;color:var(--ink)}
+ol,ul{margin:4px 0 4px 22px}
+li{margin-bottom:5px}
 b.k{color:var(--green)} b.w{color:var(--pink)} b.r{color:var(--red)}
-.btnlike{display:inline-block;background:#f0a500;color:#2b1d00;font-weight:800;font-size:11px;padding:2px 8px;border-radius:3px;border:1px solid #a97b00}
-.note{background:#fdf6e3;border-left:3px solid var(--amber);padding:10px 12px;font-size:12px;margin:12px 0;border-radius:3px}
-.url{background:#101b12;color:#6ee84f;padding:10px 14px;border-radius:4px;font-size:13px;font-weight:800;text-align:center;margin:10px 0;box-shadow:inset 0 0 12px rgba(0,0,0,.6)}
-a{color:var(--amber)}
+.btnlike{display:inline-block;background:#f0a500;color:#2b1d00;font-weight:800;font-size:10.5px;padding:1px 7px;border-radius:3px;border:1px solid #a97b00}
+.note{background:#fdf6e3;border-left:3px solid var(--amber);padding:9px 12px;font-size:12px;margin:10px 0;border-radius:3px}
+.url{background:#101b12;color:#6ee84f;padding:8px 12px;border-radius:4px;font-size:12.5px;font-weight:800;text-align:center;margin:8px 0;box-shadow:inset 0 0 12px rgba(0,0,0,.6)}
+table{width:100%;border-collapse:collapse;margin:6px 0}
+td{padding:5px 8px;border:1px solid var(--line);vertical-align:top}
+td:first-child{font-weight:800;white-space:nowrap;background:#eef2f4}
+.ok{color:var(--green);font-weight:800}
 </style></head><body>
 <div class="page">
-  <h1><span class="a">CLUTCH</span> <span class="g">LAB</span> — guide express</h1>
-  <div class="sub">Le labo robots de Dom · la machine à tester Clutch sans 200 vrais testeurs · à l'usage de David & Mel</div>
+  <h1><span class="a">CLUTCH</span> <span class="g">LAB</span> — mode d'emploi & fonctionnalités</h1>
+  <div class="sub">La machine à tester Clutch construite par Dom · v1.5 · pour David & Mel · 13.07.2026</div>
 
-  <div class="url">https://dominiquemfosse-hue.github.io/clutch-lab/</div>
+  <div class="url">Cockpit : dominiquemfosse-hue.github.io/clutch-lab · Proto profil : …/clutch-proto</div>
 
   <h2>C'est quoi ?</h2>
-  <p>Une <b>ville vivante simulée</b> : des dizaines de bots qui ouvrent des <b class="k">Fenêtres</b>, s'envoient des <b class="k">Clutchs</b>, posent des <b class="k">Verrous</b>, refusent, créent des Événements — en passant par les <b>mêmes portes que les humains</b>. But : trouver les bugs et les trous de liquidité AVANT les vrais gens.</p>
+  <p>Une <b>ville vivante simulée</b> : des dizaines/centaines de bots qui vivent comme de vrais utilisateurs — ils ouvrent des <b class="k">Fenêtres</b>, s'envoient des <b class="k">Clutchs</b>, posent des <b class="k">Verrous</b>, refusent, ignorent, créent des Événements — en passant par les <b>mêmes portes (RPC) que les humains</b>. Objectif : trouver les bugs et les trous de liquidité <b>avant</b> les vrais gens.</p>
 
-  <h2>La démo en 2 minutes</h2>
+  <h2>Démarrage express (2 min)</h2>
   <ol>
-    <li>Ouvre l'URL ci-dessus (ordinateur conseillé).</li>
-    <li>Clique <span class="btnlike">MODE DÉMO LOCALE</span> puis <span class="btnlike">➕ CRÉER LES BOTS</span>.</li>
-    <li>Clique <span class="btnlike">▶️ LANCER LA SOIRÉE</span> — et regarde Lausanne s'animer.</li>
+    <li>Ouvre le cockpit → clique <span class="btnlike">MODE DÉMO LOCALE</span> (rien à configurer).</li>
+    <li><span class="btnlike">➕ CRÉER LES BOTS</span> puis <span class="btnlike">▶️ LANCER LA SOIRÉE</span>.</li>
+    <li>Regarde Lausanne s'animer. Clique un bot = son <b>POV</b> (sa vie, ses clutchs).</li>
   </ol>
 
+  <h2>Les fonctionnalités (v1.5)</h2>
+  <table>
+    <tr><td>2 backends</td><td><b>Démo locale</b> (ville émulée dans le navigateur, règles serveur reproduites) ou <b>Staging Supabase</b> : les bots écrivent de VRAIES lignes dans la base de test de Dom — jamais la prod. <span class="ok">Base staging construite : 20 tables, 230 fonctions ✓</span></td></tr>
+    <tr><td>🧠 Personas</td><td>Modèle de comportement humain : 🙂 normal 40% · 🪑 passif (ouvre puis ne fait rien) 20% · 🤔 sélectif 15% · 🚀 à fond la caisse 15% · 👻 fantôme (ne répond JAMAIS) 10%. Extensible aux ~20 profils sociopsychologiques que David prépare.</td></tr>
+    <tr><td>🗺️ Zones</td><td><b>Lausanne</b> seule ou <b>« Clutch Romandie »</b> : bots répartis sur 10 villes pondérées (Lausanne 30%, Genève 28%, Fribourg, Neuchâtel, Sion…). Carte réelle claire (mêmes tuiles que l'appli).</td></tr>
+    <tr><td>🎚️ Densités</td><td>Les 3 situations de David en un clic : <b>1 · Sous-effectif</b> (12 bots — où meurt la ville ?) · <b>2 · Moyenne</b> (60) · <b>3 · Extrême</b> (250 à fond).</td></tr>
+    <tr><td>🎛️ Scénario</td><td>Curseurs statistiques : % d'ouverture de Fenêtres, proba d'envoi de Clutch, accepter/refuser/ignorer, création d'Événements, vitesse. <b>Seed rejouable</b> : même seed = même film (indispensable pour reproduire un bug).</td></tr>
+    <tr><td>🛸 Ambiance</td><td>Pilote automatique : la ville vit TOUTE SEULE à rythme humain, et les bots <b>répondent en priorité aux vrais humains</b> (vous !) après un délai naturel de 1-6 min. Le scénario « première semaine sans assez de monde ».</td></tr>
+    <tr><td>💧 Liquidité</td><td>Courbes Fenêtres/Verrous en direct + détection « zone morte » : à quelle densité la ville « prend ». LE enjeu produit.</td></tr>
+    <tr><td>🐓 LE COQ</td><td>Le gardien des invariants de la Forteresse : EXCLUSION (double-booking), REACH/Cône (RDV physiquement impossible — Graal 1), CHAINING (enchaînements), boîte ♀ saturée (Graal 3), doublons, horizon 18h. Chaque alerte = tick + seed pour rejouer. <b>Premier résultat concret</b> : en densité extrême sur la Romandie, 20 Verrous physiquement impossibles détectés — la question est posée : le serveur garde-t-il le Cône ?</td></tr>
+    <tr><td>👁 POV · 📜 Journal</td><td>Incarner n'importe quel bot (sa Fenêtre, ses clutchs, son persona). Journal de chaque action, y compris les <b>refus serveur</b> (COOLDOWN, PAIR_BUSY, INBOX_FULL, OVERLAP) — ces refus = les gardes tiennent. Export JSON du run complet.</td></tr>
+  </table>
+
   <h2>Comment lire la carte</h2>
+  <p>Point <b class="w">rose</b> = femme · <b style="color:#2d6bb8">bleu</b> = homme · <b class="k">vert</b> = en Verrou · cercle rose pointillé = sa Fenêtre (rayon réel en km) · trait gris pointillé = Clutch en attente · trait <b class="k">vert</b> = Verrou.</p>
+
+  <h2>À trancher ensemble (décisions ouvertes)</h2>
   <ul>
-    <li>Point <b class="w">rose</b> = femme · point <b style="color:#2d6bb8">bleu</b> = homme · point <b class="k">vert</b> = en Verrou.</li>
-    <li>Cercle rose pointillé = sa Fenêtre (son rayon réel en km).</li>
-    <li>Trait gris pointillé = Clutch en attente · trait <b class="k">vert</b> = Verrou posé.</li>
-    <li><b>Clique n'importe quel bot</b> → son POV : sa Fenêtre, ses clutchs reçus/envoyés.</li>
+    <li><b>Bots au lancement public</b> : pour les tests/beta privée = oui. En public, un bot qui pose un Verrou ne peut pas venir → tension avec « quand on dit oui, on vient ». Alternatives : bots qui animent sans jamais verrouiller, ou événements officiels assumés.</li>
+    <li><b>Les ~20 profils de comportement</b> (étude David) : dès qu'ils existent, chaque profil devient un persona du simulateur avec ses statistiques.</li>
+    <li><b>Architecture 2 bases</b> (vrais users chez David, bots chez Dom) : OK pour les présences, mais un Clutch humain↔bot doit vivre dans UNE base — à spécifier.</li>
   </ul>
 
-  <h2>Les 3 cadrans à surveiller</h2>
-  <ul>
-    <li><b>📊 Métriques</b> — la courbe rose (Fenêtres) et verte (Verrous) : c'est la <b>liquidité</b>. Si beaucoup de Fenêtres mais zéro Verrou → « zone morte », la ville ne prend pas à cette densité.</li>
-    <li><b class="r">🐓 LE COQ</b> — le gardien des invariants. S'il crie (rouge), un principe de la Forteresse a cassé : double-booking, RDV physiquement impossible (le Cône), boîte ♀ saturée… Chaque alerte donne le tick + la seed pour <b>rejouer exactement</b> le bug.</li>
-    <li><b>📜 Journal</b> — chaque action des bots, y compris les <b>refus serveur</b> (COOLDOWN, PAIR_BUSY, INBOX_FULL, OVERLAP). Ces refus sont une BONNE nouvelle : les gardes tiennent.</li>
-  </ul>
-
-  <h2>Jouer avec la ville</h2>
-  <p>Les curseurs « Scénario de soirée » = le panel statistique : densité de Fenêtres, agressivité d'envoi, taux d'acceptation. Exemples à tester devant eux : <b>zone creuse</b> (10 bots, tout au minimum) vs <b>Lausanne samedi 20h</b> (200 bots, tout au maximum). Même seed = même film, rejouable à l'identique.</p>
-
-  <div class="note"><b>Deux modes :</b> « Démo locale » = ville émulée dans le navigateur, rien à installer (parfait pour cette démo). « Staging Supabase » = les bots écrivent de vraies lignes dans la base de test de Dom — jamais la prod.</div>
-
-  <h2>Vocabulaire (gravé)</h2>
-  <p><b class="k">Fenêtre</b> = dispo ouverte · <b class="k">Clutch</b> = proposition lieu+heure · <b class="k">Verrou</b> = RDV confirmé · <b class="k">Le Cône</b> = faisabilité espace-temps · <b class="k">Le COQ</b> = validateur d'invariants. Jamais : match, swipe, like.</p>
-
-  <div class="sub" style="margin-top:24px">CLUTCH LAB v1.2 · Dom · 10.07.2026 · retours → mur /collab</div>
+  <div class="sub" style="margin-top:18px">CLUTCH LAB v1.5 · Dom · vocabulaire gravé : Fenêtre · Clutch · Verrou · le Cône · le COQ — jamais match/swipe/like · retours → mur /collab</div>
 </div>
 </body></html>
