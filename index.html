@@ -88,7 +88,7 @@ pre{font-size:10px;color:var(--phos);white-space:pre-wrap;word-break:break-all;b
 <div class="top">
   <span class="lamp"></span>
   <h1><span class="clu">CLU</span><span class="tch">TCH</span> LAB ☢</h1>
-  <span class="sub">ЦУП · ПУЛЬТ УПРАВЛЕНИЯ — labo robots · ville vivante simulée · v1.2 (Dom, 10.07.2026)</span>
+  <span class="sub">ЦУП · ПУЛЬТ УПРАВЛЕНИЯ — labo robots · ville vivante · chasseur de bugs · v2.0 (Dom, 13.07.2026)</span>
   <span class="mode local" id="modeBadge">РЕЖИМ: DÉMO LOCALE</span>
 </div>
 
@@ -177,8 +177,10 @@ $$;</pre>
       <div class="rowb">
         <button class="btn g" id="btnRun" onclick="toggleRun()">▶️ Lancer la soirée</button>
         <button class="btn ghost" onclick="stepOnce()">⏭ 1 tick</button>
+        <button class="btn warn" onclick="saboteurTick()">🧨 Batterie saboteur</button>
         <button class="btn ghost" onclick="exportRun()">💾 Export JSON</button>
       </div>
+      <div class="hint">🧨 <b>Saboteur</b> = attaques volontaires (auto-clutch, doublons, cooldown, flood boîte ♀, RDV impossible). Un refus serveur = ✅ la garde tient. Une acceptation = 🚨 alerte GARDE au COQ.</div>
       <div class="hint">Chaque tick : les bots ouvrent des Fenêtres, se clutchent, répondent — via les <b>vraies RPC</b> (mêmes portes que les humains). Le COQ vérifie les invariants après chaque tick.</div>
     </div>
 
@@ -268,6 +270,7 @@ function mulberry32(s){let a=s>>>0;return()=>{a|=0;a=(a+0x6D2B79F5)|0;let t=Math
 let adapter=null, snap={people:[],windows:[],clutches:[],events:[]}, running=false, timer=null
 let tick=0, rng=mulberry32(42), alerts=[], history=[], counters={sent:0,accept:0,refuse:0,events:0}
 let povId=null, runLog=[]
+let prevStates={}, cooldownPairs={}, attacks=[]   // COQ v2 : suivi d'états + attaques saboteur
 
 // ── 🧠 MODÈLE DE COMPORTEMENT HUMAIN — personas statistiques (David 10.07) ────
 //    « le gars qui ne fait rien, le gars à fond la caisse, le connard qui ne répond jamais… »
@@ -572,6 +575,33 @@ function runCoq(){
   // HORIZON : fenêtres au-delà de 18h
   for(const w of (snap.windows||[])){ if(+new Date(w.end_at)>Date.now()+18*3600000+5*MIN)
     coq('HORIZON',`Fenêtre ${w.id} de ${nameOf(w.user_id)} dépasse l'horizon 18h`,w.user_id) }
+
+  // ── COQ v2 : bugs ALGORITHMIQUES ──────────────────────────────────────────
+  // TRANSITIONS ILLÉGALES (machine d'états des clutchs)
+  const LEGAL={pending:['accepted','declined','refused','counter','timeout','cancelled','expired','completed'],
+    counter:['accepted','declined','refused','timeout','cancelled','pending'],
+    accepted:['completed','cancelled','noshow']}
+  for(const c of (snap.clutches||[])){
+    const old=prevStates[c.id]
+    if(old && old!==c.status && !(LEGAL[old]||[]).includes(c.status))
+      coq('TRANSITION',`clutch ${String(c.id).slice(0,8)} : ${old} → ${c.status} — transition INTERDITE par la machine d'états`,c.sender_id)
+    prevStates[c.id]=c.status
+  }
+  // EXPIRY : pending encore là longtemps après expires_at → expire_clutches ne tourne pas ?
+  for(const c of pend){ if(c.expires_at && Date.now()-+new Date(c.expires_at) > 3*MIN)
+    coq('EXPIRY',`pending ${String(c.id).slice(0,8)} expiré depuis ${Math.round((Date.now()-+new Date(c.expires_at))/MIN)} min et toujours vivant — le cron expire_clutches tourne-t-il ?`,c.sender_id,true) }
+  // CAP_ACTIVE : plafond de clutchs actifs par ENVOYEUR (♂ 3-5 · ♀ 20)
+  const act={}
+  for(const c of (snap.clutches||[])){ if(['pending','accepted','counter'].includes(c.status)) act[c.sender_id]=(act[c.sender_id]||0)+1 }
+  for(const pid in act){ const p=(snap.people||[]).find(x=>x.id===pid)
+    const cap = p&&p.gender==='woman' ? 20 : 5
+    if(act[pid]>cap) coq('CAP_ACTIVE',`${nameOf(pid)} : ${act[pid]} clutchs actifs (> cap ${cap}) — Graal 3`,pid) }
+  // COOLDOWN : re-clutch <48h après refus sur la même paire orientée
+  for(const c of (snap.clutches||[])){ if(['declined','refused'].includes(c.status))
+    cooldownPairs[c.sender_id+'>'+c.receiver_id]=Math.max(cooldownPairs[c.sender_id+'>'+c.receiver_id]||0, +new Date(c.created_at)) }
+  for(const c of pend){ const t=cooldownPairs[c.sender_id+'>'+c.receiver_id]
+    if(t && +new Date(c.created_at)>t && +new Date(c.created_at)-t < 48*3600000)
+      coq('COOLDOWN',`${nameOf(c.sender_id)} a re-clutché ${nameOf(c.receiver_id)} ${Math.max(1,Math.round((+new Date(c.created_at)-t)/3600000))}h après un refus (<48h) — la garde a laissé passer`,c.sender_id) }
 }
 
 // ── MÉTRIQUES + LIQUIDITÉ ────────────────────────────────────────────────────
@@ -739,6 +769,51 @@ async function ambLoop(){ if(!ambOn) return
   try{ await ambianceTick() }catch(e){ log('⛔ ambiance : '+e.message,'ko') }
   ambTimer=setTimeout(ambLoop,(+$('ambTick').value||20)*1000) }
 
+// ── 🧨 SABOTEUR : attaques volontaires — on VEUT des refus. Accepté = bug (alerte GARDE) ──
+async function saboteurTick(){
+  if(!adapter) useLocal()
+  await refreshSnapshot(false)
+  const people=(snap.people||[]).filter(p=>p.is_bot)
+  if(people.length<6){ log('🧨 saboteur : il faut au moins 6 bots'); return }
+  const wins=(snap.windows||[]), online=people.filter(p=>wins.some(w=>w.user_id===p.id))
+  const pool = online.length>=6 ? online : people
+  const pick=a=>a[Math.floor(rng()*a.length)]
+  const expectFail=async (nom,promise,codes)=>{
+    try{
+      const r=await promise
+      const refuse = r && r.ok===false
+      attacks.push({nom,tick,refus:refuse?(r.code||'?'):null,accepte:!refuse})
+      if(refuse) log(`🧨✅ ${nom} → refusé (${r.code||'?'}) : la garde tient`,'ok')
+      else coq('GARDE',`${nom} : le serveur a ACCEPTÉ une action interdite (refus attendu : ${codes})`,'saboteur')
+    }catch(e){ log(`🧨⛔ ${nom} : erreur ${e.message}`,'ko') }
+  }
+  log('🧨 BATTERIE SABOTEUR — tick '+tick,'ko')
+  const a=pick(pool), when=new Date(Date.now()+45*MIN).toISOString()
+  // 1. Auto-clutch
+  await expectFail('Auto-clutch (sur soi-même)', adapter.sendClutch(a.id,a.id,'Miroir 🤖',when,60,a.lat,a.lng), 'SELF')
+  // 2. Doublon sur paire déjà pending
+  const p0=(snap.clutches||[]).find(c=>c.status==='pending'&&isBotId(c.sender_id)&&isBotId(c.receiver_id))
+  if(p0) await expectFail('Doublon pending (pair_busy)', adapter.sendClutch(p0.sender_id,p0.receiver_id,'Encore 🤖',when,60,p0.venue_lat||a.lat,p0.venue_lng||a.lng), 'PAIR_BUSY')
+  // 3. Re-clutch après refus <48h
+  const d0=(snap.clutches||[]).find(c=>['declined','refused'].includes(c.status)&&isBotId(c.sender_id))
+  if(d0) await expectFail('Re-clutch après refus <48h (cooldown)', adapter.sendClutch(d0.sender_id,d0.receiver_id,'Retente 🤖',when,60,d0.venue_lat||a.lat,d0.venue_lng||a.lng), 'COOLDOWN')
+  // 4. Flood boîte ♀ : 6 clutchs entrants d'affilée (cap 5/j — Graal 3)
+  const f=pool.find(p=>p.gender==='woman'), men=pool.filter(p=>p.gender==='man')
+  if(f && men.length>=6){
+    let refuse=false, last=null
+    for(let i=0;i<6;i++){ last=await adapter.sendClutch(men[i].id,f.id,'Flood '+(i+1)+' 🤖',new Date(Date.now()+(60+i*7)*MIN).toISOString(),30,f.lat,f.lng)
+      if(last && last.ok===false && /INBOX|RECEIVED|FULL|CAP/i.test((last.code||'')+(last.message||''))){ refuse=true; break } }
+    attacks.push({nom:'Flood boîte ♀ (6 entrants)',tick,refus:refuse?last.code:null,accepte:!refuse})
+    if(refuse) log('🧨✅ Flood boîte ♀ → bloqué ('+(last.code||'?')+') : Graal 3 tient','ok')
+    else coq('GARDE','Flood boîte ♀ : 6 clutchs entrants acceptés d\'affilée — cap 5/j non appliqué (Graal 3)','saboteur')
+  }
+  // 5. RDV physiquement impossible : Genève dans 10 minutes (le Cône / Graal 1)
+  const b=pick(pool.filter(p=>p.id!==a.id))
+  if(b) await expectFail('RDV impossible — Genève dans 10 min (le Cône)', adapter.sendClutch(a.id,b.id,'Genève 🤖',new Date(Date.now()+10*MIN).toISOString(),60,46.2044,6.1432), 'CONE/REACH')
+  await refreshSnapshot(true); runCoq(); updateMetrics(true)
+  log('🧨 batterie terminée : '+attacks.filter(x=>x.tick===tick).length+' attaques (voir COQ + export)')
+}
+
 // ── CONTRÔLES ────────────────────────────────────────────────────────────────
 function toggleRun(){
   running=!running
@@ -752,7 +827,7 @@ async function loop(){ if(!running) return
   timer=setTimeout(loop, (+$('tickS').value||3)*1000) }
 async function stepOnce(){ if(!adapter) useLocal(); await runTick(); renderPov() }
 function exportRun(){
-  const blob=new Blob([JSON.stringify({date:new Date().toISOString(),seed:+$('seed').value,tick,counters,alerts,history,snapshot:snap},null,1)],{type:'application/json'})
+  const blob=new Blob([JSON.stringify({date:new Date().toISOString(),seed:+$('seed').value,tick,counters,alerts,attacks,history,snapshot:snap},null,1)],{type:'application/json'})
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`clutch-lab-run-t${tick}.json`; a.click()
 }
 setInterval(()=>$('clock').textContent=new Date().toLocaleTimeString('fr-CH'),1000)
